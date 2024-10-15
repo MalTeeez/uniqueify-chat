@@ -1,73 +1,19 @@
 // @ts-check
 
-// This function will check if a given message contains less than 4 unique words, is fully in uppercase, or contains repeated substrings of length 4 or more characters, or repeated sequences of 3 or more words
-function shouldHideMessage(message) {
-  // Count the number of uppercase letters in the message
-  const uppercaseLetters = message.match(/[A-Z]/g) || [];
-  const numUppercaseLetters = uppercaseLetters.length;
-
-  if (numUppercaseLetters > 5) {
-    return true;
-  }
-
-  // Check if the message has fewer than 5 unique words
-  const words = message.split(/\s+/);
-  const uniqueWords = new Set(words);
-
-  if (uniqueWords.size < 5) {
-    return true;
-  }
-
-  // Check if the message contains repeated substrings of length 4 or more characters
-  for (let i = 0; i < message.length - 7; i++) {
-    const substring = message.substring(i, i + 4);
-    const remaining = message.substring(i + 4);
-
-    if (remaining.includes(substring)) {
-      const nextIndex = remaining.indexOf(substring) + 4;
-      const nextSubstring = remaining.substring(nextIndex, nextIndex + 4);
-
-      if (nextSubstring === substring) {
-        return true;
-      }
-    }
-  }
-
-  // Check if the message contains repeated sequences of 3 or more words
-  const wordsArr = message.toLowerCase().split(/\W+/);
-  for (let i = 0; i < wordsArr.length - 2; i++) {
-    const wordSequence = wordsArr.slice(i, i + 3);
-    const remainingWords = wordsArr.slice(i + 3);
-
-    if (remainingWords.join(" ").includes(wordSequence.join(" "))) {
-      return true;
-    }
-  }
-
-  // If none of the conditions are true, return false
-  return false;
-}
-
 function manage_map_expiries() {
   let to_delete_map = [];
   for (const [message, value] of message_map) {
     // Is entry older than
-    if (Date.now() - value.expiry.valueOf() > MAP_ENTRY_MAX_AGE || !value.node) {
+    if (Date.now() - value.expiry.valueOf() > MAP_ENTRY_MAX_AGE || !value.node || value.count > RESET_SIZE) {
       to_delete_map.push(message);
-      console.log('Message "' + message + '" last updated at ', value.expiry, " is getting deleted");
+      //console.log('Message "' + message + '" last updated at ', value.expiry, " is getting deleted");
     }
   }
   for (const key of to_delete_map) {
     message_map.delete(key);
   }
+  console.log("Map: ", message_map)
 }
-
-/**
- * @type {Map<string, {count: number, expiry: Date, node: Node}>}
- */
-const message_map = new Map();
-const MAP_ENTRY_MAX_AGE = 30 * 1000;
-setTimeout(manage_map_expiries, 1000);
 
 /**
  * Update the message counter indicator on a node to the new amount of messages
@@ -75,32 +21,66 @@ setTimeout(manage_map_expiries, 1000);
  * @param {number} msg_count
  */
 function update_message_counter(node, msg_count) {
-    if (node.lastChild) {
-        node.lastChild.textContent = msg_count.toString()
-    }
+  //console.log("Cached node lastChild text: " + node.lastChild?.nodeValue)
+  //console.log("trying to update node: ", node.lastChild);
+  if (node.lastChild && node.lastChild.childNodes[0]) {
+    // @ts-ignore
+    node.lastChild.childNodes[0].innerText = msg_count.toString();
+  }
 }
-
 
 /**
  * Attach a message counter indicator for repeated messages to chat messages
  * @param {Node} node
  */
 function attach_message_counter(node, msg_count) {
-    const counter = document.createElement("div");
-    counter.innerHTML = msg_count.toString()
-    node.appendChild(counter)
-    //console.log("Appended child to ", node, " with counter " + msg_count)
+  const counter_element = document.createElement("div");
+  const counter_paragraph = document.createElement("p");
+  
+  counter_paragraph.innerText = msg_count.toString();
+  counter_paragraph.className += "message-counter";
+  counter_element.className += "counter-container";
+  
+  counter_element.appendChild(counter_paragraph);
+  node.appendChild(counter_element);
+  //console.log("Appended child to ", node, " with counter " + msg_count)
 }
 
 /**
  * Hide a node element
- * @param {Node} node 
+ * @param {Node} node
  */
 function hide_node(node) {
-    // @ts-ignore
-    node.style.display = "none";
+  // @ts-ignore
+  node.style.display = "none";
+  //console.log("hiding node; ", node)
 }
 
+/**
+ * Extract a string only message from a chat flex node containing only emotes
+ * @param {Node} node The chat message flex node
+ */
+function extract_emotestring_from_node(node) {
+  const emote_parent_node = extract_content_node(node);
+  let emote_type_string = "";
+  for (const childNode of emote_parent_node.childNodes) {
+    // @ts-ignore
+    if (childNode.className == "chat-line__message--emote-button") {
+      // @ts-ignore
+      emote_type_string += childNode.childNodes[0].childNodes[0].childNodes[0].childNodes[0].alt;
+    }
+    emote_type_string += ":";
+  }
+  return emote_type_string;
+}
+
+/**
+ * Extract the actual chat message content node
+ * @param {Node} node The chat message flex node
+ */
+function extract_content_node(node) {
+  return node.childNodes[0].childNodes[2];
+}
 
 /**
  * Callback handler for the MutationObserver
@@ -117,48 +97,99 @@ function chat_mutation_handler(mutationList, observer) {
         mutation.addedNodes[0].className == "chat-line__message"
       ) {
         const node = mutation.addedNodes[0];
-        //console.log(node);
+        const flex_node = node.childNodes[0].childNodes[1].childNodes[1].childNodes[0];
 
-        const message_text =
-          node.childNodes[0].childNodes[1].childNodes[1].childNodes[0].childNodes[0].childNodes[2].textContent;
+        // Get the messages actual text from the lowest node containing only that
+        let message_text = extract_content_node(flex_node).textContent?.toLocaleLowerCase();
         if (message_text) {
-          // Enter this message into map, or increase its count if its repeated
+          // Check if this message only contains emotes, if yes convert it to text
+          if (message_text.match(/^\s+$/gm)) {
+            message_text = extract_emotestring_from_node(flex_node);
+          }
+          // Cut off the message, if its longer than 100 chars, to counter small additions (that change nothing about the actual content)
+          if (message_text.length > 99) message_text = message_text.substring(0, 100);
+          // Check if we already had this message before (in our frame)
           const cached_message = message_map.get(message_text);
+          // Enter this message into map, or increase its counter if its repeated
           if (cached_message) {
             const current_count = cached_message.count + 1;
+            // Is this the first duplicate?
+            if (current_count < 3) {
+              //console.log('Message "' + message_text + '" is duplicate, attaching counter with start ' + current_count);
+              // Attach our message counter to the original message node
+              attach_message_counter(cached_message.node, current_count);
+            } else {
+              //console.log('Message "' + message_text + '" is duplicate again, updating counter to ' + current_count);
+              // Update the counter on the original message node
+              update_message_counter(cached_message.node, current_count);
+            }
+            // Hide the duplicate message
+            hide_node(node);
+            // And sync the increased counter, new last-timestamp into our cache
             message_map.set(message_text, {
               count: current_count,
               expiry: new Date(Date.now()),
               node: cached_message.node,
             });
-            // Is this the first duplicate?
-            if (current_count < 3) {
-                console.log("Message \"", message_text, "\" is duplicate, attaching counter with start " + current_count)
-                attach_message_counter(node, current_count)
-            } else {
-                console.log("Message \"", message_text, "\" is duplicate again, updating counter to " + current_count)
-                // Update first message, delete the duplicate one
-                update_message_counter(cached_message.node, current_count)
-                hide_node(node)
-            }
           } else {
+            // The message is new, track it for a while in our cache
             message_map.set(message_text, {
               count: 1,
               expiry: new Date(Date.now()),
-              node: node,
+              node: flex_node,
             });
+            // console.log("new message: " + message_text);
+            // DEBUG: Filter out unique messages to better see stacking up of duplicate counters
+            //hide_node(node);
           }
-          //console.log("cleared message with text: ", message_text);
         }
       }
     }
   }
 }
 
-const chat_element = document.getElementsByClassName("chat-scrollable-area__message-container").item(0);
+function init() {
+  var sheet = document.styleSheets[0];
+  sheet.insertRule(
+    `
+      .message-counter { 
+        display: inline; 
+        background: var(--color-blue-9); 
+        padding: 0.5px 2px 0.5px 2px; 
+        border-radius: 3px; 
+        font-weight: 700; 
+      }
+    `,
+    sheet.cssRules.length
+  );
+  sheet.insertRule(
+    `
+      .counter-container {
+        right: 1px;
+        position: absolute;
+      }
+    `,
+    sheet.cssRules.length
+  );
 
-if (chat_element) {
-  const config = { attributes: false, childList: true, subtree: true };
-  const observer = new MutationObserver(chat_mutation_handler);
-  observer.observe(chat_element, config);
+  // Get the chat container that contains all messages (lowest), and thereby mutates on updates
+  const chat_element = document.getElementsByClassName("chat-scrollable-area__message-container").item(0);
+
+  if (chat_element) {
+    console.info("[Uniqueify-Chat]: Attaching mutation handler to twitch chat window.")
+    const config = { attributes: false, childList: true, subtree: true };
+    const observer = new MutationObserver(chat_mutation_handler);
+    // And attach our mutation handler for subtree updates
+    observer.observe(chat_element, config);
+  }
 }
+
+/**
+ * @type {Map<string, {count: number, expiry: Date, node: Node}>}
+ */
+const message_map = new Map();
+const MAP_ENTRY_MAX_AGE = 30 * 1000;
+const RESET_SIZE = 50;
+setInterval(manage_map_expiries, 1000);
+
+init();
