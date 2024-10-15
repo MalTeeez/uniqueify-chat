@@ -1,0 +1,19 @@
+{
+  "manifest_version": 2,
+  "name": "uniqueqify-chat",
+  "version": "1.0",
+
+  "description": "",
+
+  "icons": {
+    "48": "icons/chat-48.png",
+    "96": "icons/chat-96.png"
+  },
+
+  "content_scripts": [
+    {
+      "matches": ["*://*.twitch.tv/*"],
+      "js": ["index.js"]
+    }
+  ]
+}
