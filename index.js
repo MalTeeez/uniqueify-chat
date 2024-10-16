@@ -12,7 +12,6 @@ function manage_map_expiries() {
   for (const key of to_delete_map) {
     message_map.delete(key);
   }
-  console.log("Map: ", message_map)
 }
 
 /**
@@ -36,11 +35,11 @@ function update_message_counter(node, msg_count) {
 function attach_message_counter(node, msg_count) {
   const counter_element = document.createElement("div");
   const counter_paragraph = document.createElement("p");
-  
+
   counter_paragraph.innerText = msg_count.toString();
   counter_paragraph.className += "message-counter";
   counter_element.className += "counter-container";
-  
+
   counter_element.appendChild(counter_paragraph);
   node.appendChild(counter_element);
   //console.log("Appended child to ", node, " with counter " + msg_count)
@@ -57,10 +56,10 @@ function hide_node(node) {
 }
 
 /**
- * Extract a string only message from a chat flex node containing only emotes
+ * Extract a string only message from a chat flex node containing (optionall) emotes and text
  * @param {Node} node The chat message flex node
  */
-function extract_emotestring_from_node(node) {
+function extract_deep_message(node) {
   const emote_parent_node = extract_content_node(node);
   let emote_type_string = "";
   for (const childNode of emote_parent_node.childNodes) {
@@ -68,6 +67,18 @@ function extract_emotestring_from_node(node) {
     if (childNode.className == "chat-line__message--emote-button") {
       // @ts-ignore
       emote_type_string += childNode.childNodes[0].childNodes[0].childNodes[0].childNodes[0].alt;
+      // @ts-ignore
+    } else if (
+      // @ts-ignore
+      (childNode.className == "text-fragment" ||
+        // @ts-ignore
+        childNode.classList.contains("link-fragment") ||
+        // @ts-ignore
+        childNode.classList.contains("mention-fragment")) &&
+      childNode.textContent &&
+      (childNode.textContent == " ") == false
+    ) {
+      emote_type_string += childNode.textContent;
     }
     emote_type_string += ":";
   }
@@ -100,12 +111,8 @@ function chat_mutation_handler(mutationList, observer) {
         const flex_node = node.childNodes[0].childNodes[1].childNodes[1].childNodes[0];
 
         // Get the messages actual text from the lowest node containing only that
-        let message_text = extract_content_node(flex_node).textContent?.toLocaleLowerCase();
+        let message_text = extract_deep_message(flex_node);
         if (message_text) {
-          // Check if this message only contains emotes, if yes convert it to text
-          if (message_text.match(/^\s+$/gm)) {
-            message_text = extract_emotestring_from_node(flex_node);
-          }
           // Cut off the message, if its longer than 100 chars, to counter small additions (that change nothing about the actual content)
           if (message_text.length > 99) message_text = message_text.substring(0, 100);
           // Check if we already had this message before (in our frame)
@@ -176,7 +183,10 @@ function init() {
   const chat_element = document.getElementsByClassName("chat-scrollable-area__message-container").item(0);
 
   if (chat_element) {
-    console.info("[Uniqueify-Chat]: Attaching mutation handler to twitch chat window.")
+    // Update the cache every second
+    setInterval(manage_map_expiries, 1000);
+
+    console.info("[Uniqueify-Chat]: Attaching mutation handler to twitch chat window.");
     const config = { attributes: false, childList: true, subtree: true };
     const observer = new MutationObserver(chat_mutation_handler);
     // And attach our mutation handler for subtree updates
@@ -190,6 +200,5 @@ function init() {
 const message_map = new Map();
 const MAP_ENTRY_MAX_AGE = 30 * 1000;
 const RESET_SIZE = 50;
-setInterval(manage_map_expiries, 1000);
 
 init();
