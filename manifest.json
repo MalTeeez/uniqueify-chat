@@ -13,7 +13,10 @@
   "content_scripts": [
     {
       "matches": ["*://*.twitch.tv/*"],
-      "js": ["index.js"]
+      "js": ["src/index.js"]
     }
-  ]
+  ],
+  "browser_action": {
+    "default_popup": "src/popup/index.html"
+  }
 }

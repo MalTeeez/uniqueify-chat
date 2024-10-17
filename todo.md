@@ -1,7 +1,6 @@
 ## todo
-- implement modes: ("newest only", "stack until different message")
-- fix early loading targeting ":"
+- test modes: ("newest only", "stack until different message")
 - design an actual logo...
-- add channel allowlist & denylist
+- add per channel allowlist & denylist
 - add extension ui
-- add inline emote parsing
+- work with popout chat
