@@ -1,5 +1,14 @@
 // @ts-check
 
+function initRuntimeListener() {
+  // @ts-ignore
+  browser.runtime.onMessage.addListener((request) => {
+    console.log("Message from the background script:");
+    console.log(request.greeting);
+    return Promise.resolve({ response: "Hi from content script" });
+  });
+}
+
 function manage_map_expiries() {
   let to_delete_map = [];
   for (const [message, value] of message_map) {
@@ -139,7 +148,7 @@ function chat_message_handler_newest(top_node, flex_node, message) {
     // Attach our message counter to the newest (this) message node
     attach_message_counter(flex_node, current_count);
     // Hide the older duplicate message
-    //hide_node(cached_message.node);
+    hide_node(cached_message.node);
     // And sync the increased counter, new last-timestamp and the newest node into our cache
     message_map.set(message, {
       count: current_count,
@@ -347,4 +356,5 @@ let duplicate_counter = 0;
 
 // For live reloads
 //if (observer) observer.disconnect()
+initRuntimeListener();
 init();

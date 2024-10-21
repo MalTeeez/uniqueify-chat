@@ -9,14 +9,19 @@
     "48": "icons/chat-48.png",
     "96": "icons/chat-96.png"
   },
-
+  	
   "content_scripts": [
     {
       "matches": ["*://*.twitch.tv/*"],
       "js": ["src/index.js"]
     }
   ],
+
+  "permissions": ["storage"],
+
   "browser_action": {
     "default_popup": "src/popup/index.html"
-  }
+  },
+
+  "content_security_policy": "script-src 'self' 'sha256-+gMxkMJPhD6xWLhz/WokVlSJA9kdtdhkNTGn0maZYXc='; object-src 'self'"
 }
