@@ -248,12 +248,14 @@ function chat_mutation_handler(mutationList, observer) {
   for (const mutation of mutationList) {
     if (mutation.type === "childList") {
       // Is this an added element?
+      console.log(mutation.addedNodes)
       if (
         mutation.addedNodes.length > 0 &&
+        mutation.addedNodes[0] &&
         // @ts-ignore
-        mutation.addedNodes[0].className == "chat-line__message"
+        mutation.addedNodes[0].childNodes[0].className == "chat-line__message"
       ) {
-        const node = mutation.addedNodes[0];
+        const node = mutation.addedNodes[0].childNodes[0];
         const flex_node = extract_flex_node(node);
         // Get the messages actual text from the lowest node containing only that
         let message_text = extract_deep_message(flex_node);
@@ -338,7 +340,7 @@ let observer;
  * - STREAK = Only deduplicate messages that appear in a "streak", so messages that dont get interrupted by different messages
  *
  */
-const HANDLER_TYPE = "NEWEST";
+const HANDLER_TYPE = "GLOBAL";
 let message_handler;
 
 
