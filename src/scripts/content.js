@@ -40,6 +40,7 @@ function update_message_counter(node, msg_count) {
 /**
  * Attach a message counter indicator for repeated messages to chat messages
  * @param {Node} node
+ * @param {number} msg_count
  */
 function attach_message_counter(node, msg_count) {
   const counter_element = document.createElement("div");
@@ -91,7 +92,10 @@ function extract_deep_message(node) {
           (childNode.classList.contains("link-fragment") ||
             // @ts-ignore
             // Is this a mention (@user)
-            childNode.classList.contains("mention-fragment")))) &&
+            childNode.classList.contains("mention-fragment") || 
+            //@ts-ignore
+            // Is this a cheer amount
+            childNode.classList.contains("chat-image-wrapper")))) &&
       // Does it actually have text
       childNode.textContent &&
       // Is that text not just an emote spacer
@@ -107,9 +111,9 @@ function extract_deep_message(node) {
       }
       // Dont need to care about the emote spacer nodes
       if (childNode.textContent != " ") {
-        // Looks like a bad node
+        // Looks like a bad/unkown node
         // @ts-ignore
-        console.warn("Failed to identify node! \"" + childNode.textContent + "\"");
+        console.warn("Failed to identify node! \"" + childNode.textContent + "\"", childNode);
       }
     }
     emote_type_string += ":";
@@ -248,10 +252,10 @@ function chat_mutation_handler(mutationList, observer) {
   for (const mutation of mutationList) {
     if (mutation.type === "childList") {
       // Is this an added element?
-      console.log(mutation.addedNodes)
       if (
         mutation.addedNodes.length > 0 &&
         mutation.addedNodes[0] &&
+        mutation.addedNodes[0].childNodes.length > 0 &&
         // @ts-ignore
         mutation.addedNodes[0].childNodes[0].className == "chat-line__message"
       ) {
@@ -352,7 +356,10 @@ const message_map = new Map();
 const MAP_ENTRY_MAX_AGE = 30 * 1000;
 const RESET_SIZE = 50;
 // for type STREAK
-let latest_message;
+let latest_message = ""
+/**
+ * @type {Node}
+ */
 let prev_node;
 let duplicate_counter = 0;
 
