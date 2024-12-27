@@ -9,7 +9,7 @@
 		"resolveJsonModule": true,
 		"skipLibCheck": true,
 		"sourceMap": true,
-		"strict": true,
+		"strict": false,
 		"allowSyntheticDefaultImports": true,
 		"noUncheckedIndexedAccess": true,
 		"moduleResolution": "bundler"

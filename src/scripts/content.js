@@ -3,10 +3,20 @@
 function initRuntimeListener() {
   // @ts-ignore
   browser.runtime.onMessage.addListener((request) => {
-    console.log("Message from the background script:");
-    console.log(request.greeting);
-    return Promise.resolve({ response: "Hi from content script" });
+    handle_browser_message(request)
   });
+}
+
+/**
+ * 
+ * @param {{type: string, mode: string, channel: string}} req_data 
+ */
+function handle_browser_message(req_data) {
+  if (req_data) {
+    if (req_data.type === "UPDATE") {
+      
+    }
+  }
 }
 
 function manage_map_expiries() {
@@ -113,7 +123,7 @@ function extract_deep_message(node) {
       if (childNode.textContent != " ") {
         // Looks like a bad/unkown node
         // @ts-ignore
-        console.warn("Failed to identify node! \"" + childNode.textContent + "\"", childNode);
+        console.warn("Failed to identify node! \"" + childNode.textContent + "\"", childNode, node);
       }
     }
     emote_type_string += ":";

@@ -10,7 +10,7 @@
 		"96": "chat-96.png"
 	},
 
-	"permissions": ["activeTab", "contextMenus", "storage"],
+	"permissions": ["activeTab", "scripting"],
 	"content_scripts": [
 		{
 			"all_frames": true,
