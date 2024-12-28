@@ -10,6 +10,16 @@ pnpm build
 ``` 
 The built extension will be in the `./build` directory.
 
+You can also use the provided build script (`scripts/build.sh`), which has been tested with: 
+```
+debian 12
+node v20.18.1
+npm  10.8.2
+pnpm 9.15.1
+```
+
+Or via docker with `./docker/build_docker.sh`.
+
 The extension is built with svelte (so with vite), via a modified version of the static adapter, that externalizes inline scripts to comply with v3.
 
 ### permissions
