@@ -3,20 +3,90 @@
 function initRuntimeListener() {
   // @ts-ignore
   browser.runtime.onMessage.addListener((request) => {
-    handle_browser_message(request)
+    handle_browser_message(request);
   });
 }
 
 /**
- * 
- * @param {{type: string, mode: string, channel: string}} req_data 
+ *
+ * @param {{type: string, mode: "NEWEST" | "GLOBAL" | "STREAK" | "NONE", channel: string}} req_data
  */
 function handle_browser_message(req_data) {
-  if (req_data) {
-    if (req_data.type === "UPDATE") {
-      
+  if (req_data && req_data.channel) {
+    if (req_data.type === "UPDATE" && req_data.mode !== "NONE") {
+      saveChannelMode(req_data.channel, req_data.mode);
+      if (observer) { 
+        observer.disconnect();
+      }
+      init();
+    } else if (req_data.type === "DELETE") {
+      deleteChannelMode(req_data.channel);
     }
   }
+}
+
+/**
+ * Get the currently selected channel, undefined if no channel is selected
+ * @returns {string | undefined}
+ */
+function getCurrentChannel() {
+  const match = window.location.href.match(/^.+:\/\/(?:www\.)?twitch\.tv\/([^\/]+?)$/m);
+  if (match && match.length == 2) {
+    return match[1];
+  } else if (match && match.length < 2) {
+    return undefined;
+  }
+  return undefined;
+}
+
+/**
+ *
+ * @param {string} channel The Twitch channel
+ * @param {"NEWEST" | "GLOBAL" | "STREAK"} mode The dedup mode for this channel
+ */
+function saveChannelMode(channel, mode) {
+  const data = {};
+  data[channel] = mode;
+  // @ts-ignore
+  browser.storage.sync
+    .set(data)
+    .then(/*console.log("[Uniqueify-Chat]: Saved setting to storage for channel " + channel + ".")*/)
+    .catch((err) => { console.warn("[Uniqueify-Chat]: Failed to save setting to storage for channel " + channel + ". ERR: ", err) });
+}
+
+/**
+ *
+ * @param {string} channel The Twitch channel
+ * @returns {Promise<"NEWEST" | "GLOBAL" | "STREAK" | undefined>}
+ */
+async function getChannelMode(channel) {
+  // @ts-ignore
+  const mode = await browser.storage.sync
+    .get([channel])
+    .then((result /** @type {Object} */) => {
+      if (Object.keys(result).length < 1) return undefined
+      return result[channel];
+    })
+    .catch((err) => {
+      return undefined;
+    });
+  //console.log("[Uniqueify-Chat]: Retrieved setting for channel " + channel + ".");
+  return mode;
+}
+
+/**
+ * 
+ * @param {string} channel The Twitch channel
+ */
+function deleteChannelMode(channel) {
+  //@ts-ignore
+  browser.storage.sync.remove(channel);
+  //console.log("[Uniqueify-Chat]: Removed setting for channel " + channel + ".");
+}
+
+async function getAllChannelModes() {
+  // @ts-ignore
+  return await browser.storage.sync.get(undefined);
 }
 
 function manage_map_expiries() {
@@ -102,7 +172,7 @@ function extract_deep_message(node) {
           (childNode.classList.contains("link-fragment") ||
             // @ts-ignore
             // Is this a mention (@user)
-            childNode.classList.contains("mention-fragment") || 
+            childNode.classList.contains("mention-fragment") ||
             //@ts-ignore
             // Is this a cheer amount
             childNode.classList.contains("chat-image-wrapper")))) &&
@@ -117,13 +187,13 @@ function extract_deep_message(node) {
       // Twitch creates 50 empty nodes on first load, and populates them later asychronically with messages
       // So ignore those early nodes, which apparently always contain ": " at load
       if (childNode.textContent === ": ") {
-        return undefined
+        return undefined;
       }
       // Dont need to care about the emote spacer nodes
       if (childNode.textContent != " ") {
         // Looks like a bad/unkown node
         // @ts-ignore
-        console.warn("Failed to identify node! \"" + childNode.textContent + "\"", childNode, node);
+        console.warn('[Uniqueify-Chat]: Failed to identify node! "' + childNode.textContent + '"', childNode, node);
       }
     }
     emote_type_string += ":";
@@ -258,6 +328,7 @@ function chat_message_handler_streak(top_node, flex_node, message) {
  * @param {Array<MutationRecord>} mutationList
  * @param {*} observer
  */
+// @ts-ignore
 function chat_mutation_handler(mutationList, observer) {
   for (const mutation of mutationList) {
     if (mutation.type === "childList") {
@@ -300,15 +371,45 @@ function get_message_handler(type) {
   }
 }
 
-function init() {
-  // Get the chat container that contains all messages (lowest), and thereby mutates on updates
-  const chat_element = document.getElementsByClassName("chat-scrollable-area__message-container").item(0);
+/**
+ * Check if the page has changed, and if so re-init the script
+ */
+function checkPageChange() {
+  const current_channel = getCurrentChannel();
+  if (current_channel && active_channel !== current_channel) {
+    if (observer) { 
+      observer.disconnect();
+    }
+    init();
+  } else if (!current_channel) {
+    observer.disconnect();
+  }
+}
 
-  if (chat_element) {
-    // Insert our css rules
-    var sheet = document.styleSheets[0];
-    sheet.insertRule(
-      `
+async function init() {
+  const current_channel = getCurrentChannel();
+  if (current_channel) {
+    active_channel = current_channel;
+    console.log(await getAllChannelModes())
+    /**
+    * @type {"NEWEST" | "GLOBAL" | "STREAK"}
+    * @description The way to handle deduplicating chat messages:
+    * - NEWEST = Deduplicate all messages, but only show the newest one, for each indidual message type (as in: new duplicate message comes, old message disappears)
+    * - GLOBAL (default) = Deduplicate all messages, only keep oldest one
+    * - STREAK = Only deduplicate messages that appear in a "streak", so messages that dont get interrupted by different messages
+    *
+    */
+    const mode = await getChannelMode(current_channel);
+    if (mode) { // TODO: If mode is set OR a default is set
+      //console.info("[Uniqueify-Chat]: Configured mode for channel " + current_channel + " is ", mode)
+      // Get the chat container that contains all messages (lowest), and thereby mutates on updates
+      const chat_element = document.getElementsByClassName("chat-scrollable-area__message-container").item(0);
+
+      if (chat_element) {
+        // Insert our css rules
+        var sheet = document.styleSheets[0];
+        sheet.insertRule(
+          `
       .message-counter { 
         display: inline; 
         background: var(--color-blue-9); 
@@ -317,28 +418,34 @@ function init() {
         font-weight: 700; 
       }
     `,
-      sheet.cssRules.length
-    );
-    sheet.insertRule(
-      `
+          sheet.cssRules.length
+        );
+        sheet.insertRule(
+          `
       .counter-container {
         right: 0px;
         position: absolute;
       }
     `,
-      sheet.cssRules.length
-    );
+          sheet.cssRules.length
+        );
 
-    // Update the cache every second
-    if (HANDLER_TYPE === "GLOBAL" || HANDLER_TYPE === "NEWEST") setInterval(manage_map_expiries, 1000);
+        // Update the cache every second
+        if (mode === "GLOBAL" || mode === "NEWEST") setInterval(manage_map_expiries, 1000);
 
-    const config = { attributes: false, childList: true, subtree: true };
-    observer = new MutationObserver(chat_mutation_handler);
-    message_handler = get_message_handler(HANDLER_TYPE);
+        const config = { attributes: false, childList: true, subtree: true };
+        observer = new MutationObserver(chat_mutation_handler);
+        message_handler = get_message_handler(mode);
 
-    // And attach our mutation handler for subtree updates
-    console.info("[Uniqueify-Chat]: Attaching mutation handler to twitch chat window with mode " + HANDLER_TYPE + ".");
-    observer.observe(chat_element, config);
+        // And attach our mutation handler for subtree updates
+        console.info(
+          "[Uniqueify-Chat]: Attaching mutation handler to twitch chat window with mode " + mode + "."
+        );
+        observer.observe(chat_element, config);
+      }
+    }
+  } else {
+    console.info("[Uniqueify-Chat]: Skipping current page, as its not a channel page.")
   }
 }
 
@@ -346,34 +453,28 @@ function init() {
  * @type {MutationObserver}
  */
 let observer;
-/**
- * @type {"NEWEST" | "GLOBAL" | "STREAK"}
- * @description The way to handle deduplicating chat messages:
- * - NEWEST = Deduplicate all messages, but only show the newest one, for each indidual message type (as in: new duplicate message comes, old message disappears)
- * - GLOBAL (default) = Deduplicate all messages, only keep oldest one
- * - STREAK = Only deduplicate messages that appear in a "streak", so messages that dont get interrupted by different messages
- *
- */
-const HANDLER_TYPE = "GLOBAL";
 let message_handler;
+// Store the active channels name
+let active_channel = "";
 
-
-// for type GLOBAL, NEWEST
+// RELEVANT for type GLOBAL, NEWEST
 /**
  * @type {Map<string, {count: number, expiry: Date, node: Node}>}
  */
 const message_map = new Map();
+// Expire individual messages after MAP_ENTRY_MAX_AGE (in millis)
 const MAP_ENTRY_MAX_AGE = 30 * 1000;
+// Start a new count for a message after RESET_SIZE appearances
 const RESET_SIZE = 50;
-// for type STREAK
-let latest_message = ""
+// RELEVEANT for type STREAK
 /**
  * @type {Node}
  */
 let prev_node;
+let latest_message = "";
 let duplicate_counter = 0;
 
-// For live reloads
-//if (observer) observer.disconnect()
 initRuntimeListener();
 init();
+// Check if the channel has changed every 5 seconds, to handle switching subpages on twitch (without needing extra permissions)
+setInterval(checkPageChange, 5000)

@@ -1,6 +1,23 @@
 import { browser } from "$app/environment";
+import { writable, type Writable } from "svelte/store";
 
 const browser_obj: any | undefined = getBrowserObject()
+
+export const channel_modes: Writable<Map<string, string>> = writable(
+	new Map<string, string>(),
+);
+
+export async function propagateListFromStorage() {
+	const stored = await getStoredChannels();
+	if (stored) {
+		channel_modes.update((channel_modes) => {
+			for (let channel in stored) {
+				channel_modes.set(channel, stored[channel]);
+			}
+			return channel_modes;
+		})
+	}
+}
 
 export async function sendMessage(type: string, mode: string, channel: string) {
 	if (browser_obj) {
@@ -22,6 +39,12 @@ export async function getCurrentChannel(): Promise<string | undefined> {
 		}
 	}
 	return undefined;
+}
+
+export async function getStoredChannels() {
+	if (browser_obj) {
+		return await browser_obj.storage.sync.get(undefined);
+	}
 }
 
 export function getBrowserObject() {

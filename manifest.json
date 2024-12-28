@@ -10,7 +10,14 @@
 		"96": "chat-96.png"
 	},
 
-	"permissions": ["activeTab", "scripting"],
+	"browser_specific_settings": {
+    	"gecko": {
+    	  "id": "sxmaa@vivaldi.net",
+    	  "strict_min_version": "78.0"
+    	}
+  	},
+
+	"permissions": ["activeTab", "storage"],
 	"content_scripts": [
 		{
 			"all_frames": true,

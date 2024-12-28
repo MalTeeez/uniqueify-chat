@@ -1,44 +1,35 @@
 <script lang="ts">
   import BarAnimation from "$lib/components/BarAnimation.svelte";
   import Option from "$lib/components/Option.svelte";
-  import { getCurrentChannel, sendMessage } from "$lib/util";
+  import { getCurrentChannel, propagateListFromStorage, sendMessage, channel_modes } from "$lib/util";
+  import { onMount } from "svelte";
 
   let hover_active = $state(false);
-
-  let denylist = $state([
-    { channel: "drewski", mode: "GLOBAL" },
-    { channel: "vedal987", mode: "GLOBAL" },
-    { channel: "lcolonq2", mode: "GLOBAL" },
-    { channel: "lcolonq3", mode: "GLOBAL" },
-    { channel: "lcolonq4", mode: "GLOBAL" },
-    { channel: "lcolonq5", mode: "GLOBAL" },
-    { channel: "lcolonq6", mode: "GLOBAL" },
-    { channel: "lcolonq7", mode: "GLOBAL" },
-    { channel: "lcolonq8", mode: "GLOBAL" },
-    { channel: "lcolonq9", mode: "GLOBAL" },
-    { channel: "lcolonq0", mode: "GLOBAL" },
-    { channel: "lcolonq11", mode: "GLOBAL" },
-    { channel: "lcolonq12", mode: "GLOBAL" },
-    { channel: "lcolonq13asdasdasdasdasdasdasdasd", mode: "GLOBAL" },
-  ]);
-
-  let allowlist = $state([
-    { channel: "lcolonq13asdasdasdasdasdasdasdasd", mode: "GLOBAL" },
-    { channel: "drewski", mode: "GLOBAL" },
-    { channel: "vedal987", mode: "GLOBAL" },
-    { channel: "lcolonq", mode: "GLOBAL" },
-    { channel: "lcolonq0", mode: "GLOBAL" },
-    { channel: "lcolonq11", mode: "GLOBAL" },
-  ]);
-
   let list_type_allow = $state(true);
 
-  async function updateForCurrentChannel(type: string, mode: string) {
-    const currentChannel: string = await getCurrentChannel();
-	if (currentChannel) {
-		sendMessage(type, mode, currentChannel)
-	}
+  async function updateChannelMode(type: string, mode: string, channel?: string) {
+    channel = channel ? channel : await getCurrentChannel();
+	  if (channel) {
+	  	sendMessage(type, mode, channel)
+      if (type === "DELETE") {
+        console.log("Deleting with mode " + mode)
+        channel_modes.update((channel_modes) => {
+          channel_modes.delete(channel);
+          return channel_modes;
+        });
+      } else if (type === "UPDATE") {
+        console.log("Updating with mode " + mode)
+        channel_modes.update((channel_modes) => {
+          channel_modes.set(channel, mode);
+          return channel_modes;
+        });
+      }
+	  }
   }
+
+  onMount(() => {
+    propagateListFromStorage();
+  })
 
 </script>
 
@@ -47,7 +38,7 @@
     <BarAnimation></BarAnimation>
     <div
       id="card"
-      class="card-shadow flex mx-auto left-0 top-0 w-52 min-h-72 flex-col py-4 px-5 card-shadow text-center backdrop-blur-lg backdrop-saturate-[1.1] backdrop-brightness-110 font-['Outfit']"
+      class="card-shadow flex mx-auto left-0 top-0 w-52 min-h-72 flex-col pt-4 px-5 card-shadow text-center backdrop-blur-lg backdrop-saturate-[1.1] backdrop-brightness-110 font-['Outfit']"
     >
       <h1
         class="mb-1 text-xl text-center font-extrabold select-none pb-5 text-gray-200 tracking-tighter drop-shadow-xl heading"
@@ -73,21 +64,21 @@
             name="newest"
             desc="Deduplicate all messages, but only show the newest one, for each indidual message type (as in: new duplicate message comes, old message disappears)"
             callback={() => {
-            	updateForCurrentChannel("UPDATE", "NEWEST");
+            	updateChannelMode("UPDATE", "NEWEST");
             }}
           ></Option>
           <Option
             name="global"
             desc="Deduplicate all messages, only keep oldest one"
             callback={() => {
-				updateForCurrentChannel("UPDATE", "GLOBAL");
+				      updateChannelMode("UPDATE", "GLOBAL");
             }}
           ></Option>
           <Option
             name="streak"
             desc="Only deduplicate messages that appear in a 'streak', so messages that dont get interrupted by different messages"
             callback={() => {
-				updateForCurrentChannel("UPDATE", "STREAK");
+				      updateChannelMode("UPDATE", "STREAK");
             }}
           ></Option>
         </div>
@@ -126,7 +117,7 @@
       </div> -->
 	  
       <div
-        class="font-['Pixelify_Sans'] leading-5 tracking-tight text-left overflow-x-hidden overflow-y-scroll max-h-[7.3rem] justify-center"
+        class="font-['Pixelify_Sans'] leading-5 tracking-tight text-left overflow-x-hidden overflow-y-scroll max-h-[7.3rem] justify-center pb-4"
       >
         <table class="table-auto border-collapse h-1 pr-4 min-w-40">
           <thead class="border-b-[1px]"
@@ -138,36 +129,34 @@
           >
           <tbody class="backdrop-brightness-90">
             {#if !list_type_allow}
-              {#each denylist as entry (entry.channel)}
+              {#each $channel_modes as [channel, mode] (channel)}
                 <tr class="border-t-[1px] border-dotted hover:break-all">
                   <td
-                    class="pl-1 min-w-16 max-w-[5.25rem] max-h-20 inline-block overflow-x-hidden hover:overflow-y-scroll"
-                    ><a href="https://twitch.tv/{entry.channel}">{entry.channel}</a></td
+                    class="pl-1 min-w-16 max-w-[5rem] max-h-20 inline-block text-ellipsis overflow-x-hidden hover:overflow-y-scroll"
+                    ><a href="https://twitch.tv/{channel}">{channel}</a></td
                   >
-                  <td class="pl-1 align-top">{entry.mode.toLowerCase()}</td>
+                  <td class="pl-1 align-top">{mode.toLowerCase()}</td>
                   <td class="pr-1 pl-1 align-top"
                     ><button
                       onclick={() => {
-                        denylist = denylist.filter((e) => e.channel != entry.channel);
-						updateForCurrentChannel("DELETE", "NONE");
+						            updateChannelMode("DELETE", "NONE", channel);
                       }}>X</button
                     ></td
                   >
                 </tr>
               {/each}
             {:else}
-              {#each allowlist as entry (entry.channel)}
+            {#each $channel_modes as [channel, mode] (channel)}
                 <tr class="border-t-[1px] border-dotted hover:break-all">
                   <td
-                    class="pl-1 min-w-16 max-w-[5.25rem] max-h-20 inline-block overflow-x-hidden hover:overflow-y-scroll"
-                    ><a href="https://twitch.tv/{entry.channel}">{entry.channel}</a></td
+                    class="pl-1 min-w-16 max-w-[5rem] max-h-20 inline-block text-ellipsis overflow-x-hidden hover:overflow-y-scroll"
+                    ><a href="https://twitch.tv/{channel}">{channel}</a></td
                   >
-                  <td class="pl-1 align-top">{entry.mode.toLowerCase()}</td>
+                  <td class="pl-1 align-top">{mode.toLowerCase()}</td>
                   <td class="pr-1 pl-1 align-top"
                     ><button
                       onclick={() => {
-                        allowlist = allowlist.filter((e) => e.channel != entry.channel);
-						updateForCurrentChannel("DELETE", "NONE");
+						            updateChannelMode("DELETE", "NONE", channel);
                       }}>X</button
                     ></td
                   >
@@ -178,7 +167,7 @@
         </table>
       </div>
 
-      <div id="footer" class="z-10 bottom-3 justify-center flex flex-row items-end pt-4">
+      <div id="footer" class="z-10 bottom-3 justify-center flex flex-row items-end mt-auto pt-1 pb-3">
         <div id="credits" class="self-end credit text-[rgba(139,139,139,0.9)]">by &nbsp;</div>
         <div id="credits" class="self-end credit font-bold relative text-[rgba(170,169,169,0.9)]">
           @malteeez
