@@ -12,13 +12,11 @@
 	  if (channel) {
 	  	sendMessage(type, mode, channel)
       if (type === "DELETE") {
-        console.log("Deleting with mode " + mode)
         channel_modes.update((channel_modes) => {
           channel_modes.delete(channel);
           return channel_modes;
         });
       } else if (type === "UPDATE") {
-        console.log("Updating with mode " + mode)
         channel_modes.update((channel_modes) => {
           channel_modes.set(channel, mode);
           return channel_modes;
@@ -38,7 +36,7 @@
     <BarAnimation></BarAnimation>
     <div
       id="card"
-      class="card-shadow flex mx-auto left-0 top-0 w-52 min-h-72 flex-col pt-4 px-5 card-shadow text-center backdrop-blur-lg backdrop-saturate-[1.1] backdrop-brightness-110 font-['Outfit']"
+      class="card-shadow flex mx-auto left-0 top-0 w-52 min-h-72 flex-col pt-4 px-5 text-base card-shadow text-center backdrop-blur-lg backdrop-saturate-[1.1] backdrop-brightness-110 font-['Outfit']"
     >
       <h1
         class="mb-1 text-xl text-center font-extrabold select-none pb-5 text-gray-200 tracking-tighter drop-shadow-xl heading"
@@ -177,7 +175,7 @@
     </div>
   </div>
   <div
-    class="absolute -z-10 size-full bg-cover bg-center top-0 left-0"
+    class="absolute -z-10 size-full bg-cover bg-center top-0 left-0 overflow-hidden"
     style="background-image: url(artemis.gif);"
   ></div>
 </main>
@@ -203,5 +201,17 @@
       var(--tw-ring-offset-shadow, 0 0 #0000),
       var(--tw-ring-shadow, 0 0 #0000),
       var(--tw-shadow);
+  }
+
+  ::-webkit-scrollbar {
+    width: 4px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background-color: rgba(155, 155, 155, 0.5);
+    border-radius: 20px;
+    border: transparent;
   }
 </style>

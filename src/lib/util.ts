@@ -33,7 +33,7 @@ export async function getCurrentChannel(): Promise<string | undefined> {
 	if (tab) {
 		//@ts-ignore
 		const url: string = tab.url;
-		const match = url.match(/^.+:\/\/.*\.?twitch\.tv\/(.+?)(?:\/.*)?$/m);
+		const match = url.match(/^.+:\/\/(?:(?:www|m)\.)?twitch\.tv\/(\w+)/m);
 		if (match && match.length > 1) {
 			return match[1];
 		}

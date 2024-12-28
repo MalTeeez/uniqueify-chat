@@ -95,5 +95,4 @@ prisma/temp.sql
 !.yarn/cache
 # and uncomment the following lines
 # .pnp.*
-pnpm-lock.yaml
 build/

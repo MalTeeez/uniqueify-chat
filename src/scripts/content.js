@@ -9,9 +9,9 @@ function initRuntimeListener() {
 
 function getBrowserObject() {
   //@ts-ignore
-  if (window && window.browser) {
+  if (window && typeof browser != "undefined") {
     //@ts-ignore
-    return window.browser;
+    return browser;
     //@ts-ignore
   } else if (window && window.chrome) {
     //@ts-ignore
@@ -44,12 +44,15 @@ function handle_browser_message(req_data) {
  * @returns {string | undefined}
  */
 function getCurrentChannel() {
-  const match = window.location.href.match(/^.+:\/\/(?:www\.)?twitch\.tv\/([^\/]+?)$/m);
+  const match = window.location.href.match(/^.+:\/\/(?:(?:www|m)\.)?twitch\.tv\/(\w+)/m);
   if (match && match.length == 2) {
+    active_channel = match[1];
     return match[1];
   } else if (match && match.length < 2) {
+    active_channel = undefined;
     return undefined;
   }
+  active_channel = undefined;
   return undefined;
 }
 
@@ -397,7 +400,7 @@ function checkPageChange() {
       observer.disconnect();
     }
     init();
-  } else if (!current_channel) {
+  } else if (!current_channel && observer) {
     observer.disconnect();
   }
 }
@@ -405,7 +408,6 @@ function checkPageChange() {
 async function init() {
   const current_channel = getCurrentChannel();
   if (current_channel) {
-    active_channel = current_channel;
     /**
      * @type {"NEWEST" | "GLOBAL" | "STREAK"}
      * @description The way to handle deduplicating chat messages:
@@ -459,7 +461,7 @@ async function init() {
       }
     }
   } else {
-    console.info("[Uniqueify-Chat]: Skipping current page, as its not a channel page.");
+    console.info("[Uniqueify-Chat]: Skipping current page, as its not a compatible channel page.");
   }
 }
 
