@@ -2,9 +2,23 @@
 
 function initRuntimeListener() {
   // @ts-ignore
-  browser.runtime.onMessage.addListener((request) => {
+  getBrowserObject().runtime.onMessage.addListener((request) => {
     handle_browser_message(request);
   });
+}
+
+function getBrowserObject() {
+  //@ts-ignore
+  if (window && window.browser) {
+    //@ts-ignore
+    return window.browser;
+    //@ts-ignore
+  } else if (window && window.chrome) {
+    //@ts-ignore
+    return window.chrome;
+  } else {
+    return undefined;
+  }
 }
 
 /**
@@ -15,7 +29,7 @@ function handle_browser_message(req_data) {
   if (req_data && req_data.channel) {
     if (req_data.type === "UPDATE" && req_data.mode !== "NONE") {
       saveChannelMode(req_data.channel, req_data.mode);
-      if (observer) { 
+      if (observer) {
         observer.disconnect();
       }
       init();
@@ -48,10 +62,12 @@ function saveChannelMode(channel, mode) {
   const data = {};
   data[channel] = mode;
   // @ts-ignore
-  browser.storage.sync
+  getBrowserObject().storage.sync
     .set(data)
     .then(/*console.log("[Uniqueify-Chat]: Saved setting to storage for channel " + channel + ".")*/)
-    .catch((err) => { console.warn("[Uniqueify-Chat]: Failed to save setting to storage for channel " + channel + ". ERR: ", err) });
+    .catch((err) => {
+      console.warn("[Uniqueify-Chat]: Failed to save setting to storage for channel " + channel + ". ERR: ", err);
+    });
 }
 
 /**
@@ -61,10 +77,10 @@ function saveChannelMode(channel, mode) {
  */
 async function getChannelMode(channel) {
   // @ts-ignore
-  const mode = await browser.storage.sync
+  const mode = await getBrowserObject().storage.sync
     .get([channel])
     .then((result /** @type {Object} */) => {
-      if (Object.keys(result).length < 1) return undefined
+      if (Object.keys(result).length < 1) return undefined;
       return result[channel];
     })
     .catch((err) => {
@@ -75,18 +91,18 @@ async function getChannelMode(channel) {
 }
 
 /**
- * 
+ *
  * @param {string} channel The Twitch channel
  */
 function deleteChannelMode(channel) {
   //@ts-ignore
-  browser.storage.sync.remove(channel);
+  getBrowserObject().storage.sync.remove(channel);
   //console.log("[Uniqueify-Chat]: Removed setting for channel " + channel + ".");
 }
 
 async function getAllChannelModes() {
   // @ts-ignore
-  return await browser.storage.sync.get(undefined);
+  return await getBrowserObject().storage.sync.get(undefined);
 }
 
 function manage_map_expiries() {
@@ -377,7 +393,7 @@ function get_message_handler(type) {
 function checkPageChange() {
   const current_channel = getCurrentChannel();
   if (current_channel && active_channel !== current_channel) {
-    if (observer) { 
+    if (observer) {
       observer.disconnect();
     }
     init();
@@ -390,17 +406,17 @@ async function init() {
   const current_channel = getCurrentChannel();
   if (current_channel) {
     active_channel = current_channel;
-    console.log(await getAllChannelModes())
     /**
-    * @type {"NEWEST" | "GLOBAL" | "STREAK"}
-    * @description The way to handle deduplicating chat messages:
-    * - NEWEST = Deduplicate all messages, but only show the newest one, for each indidual message type (as in: new duplicate message comes, old message disappears)
-    * - GLOBAL (default) = Deduplicate all messages, only keep oldest one
-    * - STREAK = Only deduplicate messages that appear in a "streak", so messages that dont get interrupted by different messages
-    *
-    */
+     * @type {"NEWEST" | "GLOBAL" | "STREAK"}
+     * @description The way to handle deduplicating chat messages:
+     * - NEWEST = Deduplicate all messages, but only show the newest one, for each indidual message type (as in: new duplicate message comes, old message disappears)
+     * - GLOBAL (default) = Deduplicate all messages, only keep oldest one
+     * - STREAK = Only deduplicate messages that appear in a "streak", so messages that dont get interrupted by different messages
+     *
+     */
     const mode = await getChannelMode(current_channel);
-    if (mode) { // TODO: If mode is set OR a default is set
+    if (mode) {
+      // TODO: If mode is set OR a default is set
       //console.info("[Uniqueify-Chat]: Configured mode for channel " + current_channel + " is ", mode)
       // Get the chat container that contains all messages (lowest), and thereby mutates on updates
       const chat_element = document.getElementsByClassName("chat-scrollable-area__message-container").item(0);
@@ -438,14 +454,12 @@ async function init() {
         message_handler = get_message_handler(mode);
 
         // And attach our mutation handler for subtree updates
-        console.info(
-          "[Uniqueify-Chat]: Attaching mutation handler to twitch chat window with mode " + mode + "."
-        );
+        console.info("[Uniqueify-Chat]: Attaching mutation handler to twitch chat window with mode " + mode + ".");
         observer.observe(chat_element, config);
       }
     }
   } else {
-    console.info("[Uniqueify-Chat]: Skipping current page, as its not a channel page.")
+    console.info("[Uniqueify-Chat]: Skipping current page, as its not a channel page.");
   }
 }
 
@@ -477,4 +491,4 @@ let duplicate_counter = 0;
 initRuntimeListener();
 init();
 // Check if the channel has changed every 5 seconds, to handle switching subpages on twitch (without needing extra permissions)
-setInterval(checkPageChange, 5000)
+setInterval(checkPageChange, 5000);

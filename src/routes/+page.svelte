@@ -33,7 +33,7 @@
 
 </script>
 
-<main class="flex items-center flex-col subpixel-antialiased">
+<main class="subpixel-antialiased">
   <div class="relative overflow-hidden">
     <BarAnimation></BarAnimation>
     <div
@@ -177,8 +177,8 @@
     </div>
   </div>
   <div
-    class="absolute bg -z-10 size-full bg-cover bg-center"
-    style="background-image: url(https://sxmaa.net/img/artemis-2-slow.gif);"
+    class="absolute -z-10 size-full bg-cover bg-center top-0 left-0"
+    style="background-image: url(artemis.gif);"
   ></div>
 </main>
 
