@@ -18,7 +18,7 @@ npm  10.8.2
 pnpm 9.15.1
 ```
 
-Or via docker with `./docker/build_docker.sh`.
+Or via docker with `chmod +x ./scripts/build_docker.sh && ./scripts/build_docker.sh`.
 
 The extension is built with svelte (so with vite), via a modified version of the static adapter, that externalizes inline scripts to comply with v3.
 

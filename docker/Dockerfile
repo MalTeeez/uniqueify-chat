@@ -1,6 +1,6 @@
 FROM node:20-bookworm
 
-COPY * /tmp/
+COPY . /tmp/
 
 WORKDIR /tmp/
 

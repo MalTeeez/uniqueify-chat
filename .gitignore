@@ -96,3 +96,4 @@ prisma/temp.sql
 # and uncomment the following lines
 # .pnp.*
 build/
+!.svelte-kit/tsconfig.json
